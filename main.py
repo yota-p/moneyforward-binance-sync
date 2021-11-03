@@ -34,8 +34,12 @@ def notify_slack(msg, file_path=None):
     # read token from file
     with open('./secrets/slackauth.json', 'r') as f:
         slackauth = json.load(f)
+        enable = slackauth['enable']
         token = slackauth['token']
         channel_id = slackauth['channel_id']
+
+    if enable is False:
+        return
 
     client = WebClient(token=token)
 
@@ -89,27 +93,22 @@ def update_balance(driver, account_id='', asset_id='', balance=0):
     account_id: Hash given for each accounts. Check URL on MoneyForward
     asset_id: Hash given for each assets in the account. Check URL of '変更' on MoneyForward
     '''
-    try:
-        logger.info(f'Updating balance for: account_id={account_id}, asset_id={asset_id}')
-        URL = f'https://moneyforward.com/accounts/show_manual/{account_id}'
-        driver.get(URL)
-        WebDriverWait(driver, 60).until(EC.presence_of_all_elements_located)
-        time.sleep(10)
+    logger.info(f'Updating balance for: account_id={account_id}, asset_id={asset_id}')
+    URL = f'https://moneyforward.com/accounts/show_manual/{account_id}'
+    driver.get(URL)
+    WebDriverWait(driver, 60).until(EC.presence_of_all_elements_located)
+    time.sleep(5)
 
-        form = driver.find_element_by_id('portfolio_det_depo')
-        form.find_element_by_class_name('btn-asset-action').click()
-        form.find_element_by_id('user_asset_det_value').clear()
-        form.find_element_by_id('user_asset_det_value').send_keys(balance)
+    form = driver.find_element_by_id('portfolio_det_depo')
+    form.find_element_by_class_name('btn-asset-action').click()
+    time.sleep(3)
+    form.find_elements_by_id('user_asset_det_value')[0].clear()
+    form.find_elements_by_id('user_asset_det_value')[0].send_keys(balance)
 
-        submitbutton = form.find_element_by_xpath(f'//*[@id="new_user_asset_det_{asset_id}"]/div[7]/div/input')
-        submitbutton.click()
+    submitbutton = form.find_element_by_xpath(f'//*[@id="new_user_asset_det_{asset_id}"]/div[7]/div/input')
+    submitbutton.click()
 
-    except Exception:
-        filepath = create_screenshot(driver, 'error')
-        notify_slack('Failed to update. \n' + traceback.format_exc(), filepath)
-
-    finally:
-        driver.quit()
+    logger.info('Successfully updated balance.')
 
 
 def fetch_balance(driver, args=None):
@@ -119,47 +118,61 @@ def fetch_balance(driver, args=None):
     for e in driver.find_elements_by_css_selector(".refresh.btn.icon-refresh"):
         if e.text == "一括更新":
             e.click()
-            logger.debug("reload clicked")
+            logger.info("reload clicked")
     return
 
 
-def login(user, password):
+def login(driver, user, password):
+    logger.info('Login to MoneyForward.')
+
     URL = "https://moneyforward.com/sign_in"
 
-    try:
-        options = Options()
-        # options.add_argument('--headless')
-        driver = webdriver.Chrome("./chromedriver", options=options)
+    # driver.implicitly_wait(10)
+    driver.get(URL)
+    WebDriverWait(driver, 60).until(EC.presence_of_all_elements_located)
+    time.sleep(3)
 
-        # driver.implicitly_wait(10)
-        driver.get(URL)
-        WebDriverWait(driver, 60).until(EC.presence_of_all_elements_located)
+    # login
+    elem = driver.find_element_by_css_selector(".ssoText")
+    elem.click()
+    elem = driver.find_element_by_css_selector(".inputItem")
+    elem.clear()
+    elem.send_keys(user)
+    elem = driver.find_element_by_css_selector(".submitBtn.homeDomain")
+    elem.click()
+    elem = driver.find_element_by_css_selector(".inputItem")
+    elem.clear()
+    elem.send_keys(password)
+    elem = driver.find_element_by_css_selector(".submitBtn.homeDomain")
+    elem.click()
+    logger.info("Login successful")
 
-        # login
-        elem = driver.find_element_by_css_selector(".ssoText")
-        elem.click()
-        elem = driver.find_element_by_css_selector(".inputItem")
-        elem.clear()
-        elem.send_keys(user)
-        logger.debug("email sent")
-        elem = driver.find_element_by_css_selector(".submitBtn.homeDomain")
-        elem.click()
-        elem = driver.find_element_by_css_selector(".inputItem")
-        logger.debug("password sent")
-        elem.clear()
-        elem.send_keys(password)
-        elem = driver.find_element_by_css_selector(".submitBtn.homeDomain")
-        elem.click()
-        logger.debug("login successful")
-    except Exception:
-        filepath = create_screenshot(driver, 'error')
-        notify_slack('Failed to book. \n' + traceback.format_exc(), filepath)
     return driver
 
 
 if __name__ == '__main__':
+    # get balance
     with open('./secrets/config.json', 'r') as f:
         config = json.load(f)
     balance = get_balance_binance_JPY(config['Binance']['API_KEY'], config['Binance']['API_SECRET'])
-    driver = login(config['MoneyForward']['email'], config['MoneyForward']['password'])
-    update_balance(driver, config['MoneyForward']['account_id'], config['MoneyForward']['asset_id'], balance)
+
+    # create driver
+    options = Options()
+    # When using headless option, some websites detect this as a bot and return blank page.
+    # Thus we specify user_agent to make headless undetectable
+    # Ref: https://intoli.com/blog/making-chrome-headless-undetectable/
+    options.add_argument('--headless')
+    user_agent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36'
+    options.add_argument(f'user-agent={user_agent}')
+    driver = webdriver.Chrome("./chromedriver", options=options)
+
+    # login & update
+    try:
+        driver = login(driver, config['MoneyForward']['email'], config['MoneyForward']['password'])
+        update_balance(driver, config['MoneyForward']['account_id'], config['MoneyForward']['asset_id'], balance)
+    except Exception:
+        filepath = create_screenshot(driver, 'error')
+        notify_slack('Failed to sync. \n' + traceback.format_exc(), filepath)
+        logger.error('Failed to sync. \n' + traceback.format_exc())
+    finally:
+        driver.quit()
