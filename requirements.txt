@@ -1,0 +1,4 @@
+beautifulsoup4==4.10.0
+selenium==3.141.0
+slack_sdk==3.11.2
+ccxt==1.59.86
