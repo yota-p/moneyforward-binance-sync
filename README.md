@@ -91,7 +91,7 @@ python main.py
 To run this every 5 minutes, hit `crontab -e` and create a job.
 
 ```cron
-*/5 * * * * cd /home/ec2-user/fumotoppara-vacancy-checker; python main.py --production
+*/5 * * * * cd /home/ec2-user/moneyforward-binance-sync; python main.py
 ```
 
 ## Tips
