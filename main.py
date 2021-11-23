@@ -87,38 +87,36 @@ def create_screenshot(driver, prefix):
     return filepath
 
 
-def update_balance(driver, account_id='', asset_id='', balance=0):
+def update_balance(driver, account_id='', balance=0):
     '''
     :params:
     account_id: Hash given for each accounts. Check URL on MoneyForward
-    asset_id: Hash given for each assets in the account. Check URL of '変更' on MoneyForward
     '''
-    logger.info(f'Updating balance for: account_id={account_id}, asset_id={asset_id}, balance={balance}')
+    logger.info(f'Updating balance for: account_id={account_id}, balance={balance}')
     URL = f'https://moneyforward.com/accounts/show_manual/{account_id}'
     driver.get(URL)
     WebDriverWait(driver, 60).until(EC.presence_of_all_elements_located)
     time.sleep(5)
 
-    form = driver.find_element_by_id('portfolio_det_depo')
-    form.find_element_by_class_name('btn-asset-action').click()
+    form = driver.find_element_by_xpath('/html/body/div[1]/div[2]/div/div[1]/div/div/section/h1[2]/a')
+    form.click()
     time.sleep(3)
-    form.find_elements_by_id('user_asset_det_value')[0].clear()
-    form.find_elements_by_id('user_asset_det_value')[0].send_keys(balance)
+    form.find_element_by_xpath('/html/body/div[1]/div[2]/div/div[2]/div[2]/form/div[2]/div/div/input').send_keys(balance)
 
-    submitbutton = form.find_element_by_xpath(f'//*[@id="new_user_asset_det_{asset_id}"]/div[7]/div/input')
+    submitbutton = form.find_element_by_xpath('/html/body/div[1]/div[2]/div/div[2]/div[2]/form/div[5]/div/input')
     submitbutton.click()
 
     logger.info('Successfully updated balance.')
 
 
-def fetch_balance(driver, args=None):
+def fetch_balance(driver):
     driver.get("https://moneyforward.com/")
     WebDriverWait(driver, 60).until(EC.presence_of_all_elements_located)
 
     for e in driver.find_elements_by_css_selector(".refresh.btn.icon-refresh"):
         if e.text == "一括更新":
             e.click()
-            logger.info("reload clicked")
+            logger.info("Reload clicked")
     return
 
 
@@ -169,7 +167,8 @@ if __name__ == '__main__':
     # login & update
     try:
         driver = login(driver, config['MoneyForward']['email'], config['MoneyForward']['password'])
-        update_balance(driver, config['MoneyForward']['account_id'], config['MoneyForward']['asset_id'], balance)
+        fetch_balance(driver)
+        update_balance(driver, config['MoneyForward']['account_id'], balance)
     except Exception:
         filepath = create_screenshot(driver, 'error')
         notify_slack('Failed to sync. \n' + traceback.format_exc(), filepath)
