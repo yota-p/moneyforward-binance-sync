@@ -93,15 +93,20 @@ def update_balance(driver, account_id='', balance=0):
     account_id: Hash given for each accounts. Check URL on MoneyForward
     '''
     logger.info(f'Updating balance for: account_id={account_id}, balance={balance}')
+    # open page
     URL = f'https://moneyforward.com/accounts/show_manual/{account_id}'
     driver.get(URL)
     WebDriverWait(driver, 60).until(EC.presence_of_all_elements_located)
     time.sleep(5)
 
+    # open 残高修正
     form = driver.find_element_by_xpath('/html/body/div[1]/div[2]/div/div[1]/div/div/section/h1[2]/a')
     form.click()
     time.sleep(3)
+    # write 修正後の残高
     form.find_element_by_xpath('/html/body/div[1]/div[2]/div/div[2]/div[2]/form/div[2]/div/div/input').send_keys(balance)
+    # uncheck 不明金として記帳
+    form.find_element_by_xpath('/html/body/div[1]/div[2]/div/div[2]/div[2]/form/div[3]/div/label/input[2]').click()
 
     submitbutton = form.find_element_by_xpath('/html/body/div[1]/div[2]/div/div[2]/div[2]/form/div[5]/div/input')
     submitbutton.click()
@@ -156,10 +161,12 @@ if __name__ == '__main__':
 
     # create driver
     options = Options()
+    # set headless to True, if you don't need to display browser
+    if config['headless']:
+        options.add_argument('--headless')
     # When using headless option, some websites detect this as a bot and return blank page.
     # Thus we specify user_agent to make headless undetectable
     # Ref: https://intoli.com/blog/making-chrome-headless-undetectable/
-    options.add_argument('--headless')
     user_agent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36'
     options.add_argument(f'user-agent={user_agent}')
     driver = webdriver.Chrome("./chromedriver", options=options)
