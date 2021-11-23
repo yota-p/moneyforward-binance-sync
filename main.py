@@ -18,7 +18,7 @@ logger.setLevel(DEBUG)
 formatter = Formatter('[%(asctime)s] [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 # for file
-file_handler = FileHandler('./moneyforward-binance-sync.log')
+file_handler = FileHandler('./main.log')
 file_handler.setLevel(DEBUG)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
@@ -93,7 +93,7 @@ def update_balance(driver, account_id='', asset_id='', balance=0):
     account_id: Hash given for each accounts. Check URL on MoneyForward
     asset_id: Hash given for each assets in the account. Check URL of '変更' on MoneyForward
     '''
-    logger.info(f'Updating balance for: account_id={account_id}, asset_id={asset_id}')
+    logger.info(f'Updating balance for: account_id={account_id}, asset_id={asset_id}, balance={balance}')
     URL = f'https://moneyforward.com/accounts/show_manual/{account_id}'
     driver.get(URL)
     WebDriverWait(driver, 60).until(EC.presence_of_all_elements_located)
