@@ -106,7 +106,7 @@ def update_balance(driver, account_id='', balance=0):
     # write 修正後の残高
     form.find_element_by_xpath('/html/body/div[1]/div[2]/div/div[2]/div[2]/form/div[2]/div/div/input').send_keys(balance)
     # uncheck 不明金として記帳
-    form.find_element_by_xpath('/html/body/div[1]/div[2]/div/div[2]/div[2]/form/div[3]/div/label/input[2]').click()
+    # form.find_element_by_xpath('/html/body/div[1]/div[2]/div/div[2]/div[2]/form/div[3]/div/label/input[2]').click()
 
     submitbutton = form.find_element_by_xpath('/html/body/div[1]/div[2]/div/div[2]/div[2]/form/div[5]/div/input')
     submitbutton.click()
